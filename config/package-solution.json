@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "spfx-tba-news-client-side-solution",
+    "id": "fd0e16d4-868e-4347-9037-9fd36ec947e7",
+    "version": "1.0.0.0",
+    "iconPath": "images/news-icon.png",
+    "includeClientSideAssets": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": ""
+    },
+    "features": [{
+      "title": "SPFx - News block",
+      "description": "My SPFx News Block Feature",
+      "id": "99e37f0f-cfb1-42c9-b6e7-6305c5c81731",
+      "version": "1.0.0.0",
+      "assets": {
+        "elementManifests": [
+          "elements.xml"
+        ],
+        "elementFiles":[
+          "schema.xml"
+        ]
+      }
+    }]
+  },
+  "paths": {
+    "zippedPackage": "solution/spfx-tba-news.sppkg"
+  }
+}

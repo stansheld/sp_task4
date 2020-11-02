@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<List xmlns:ows="Microsoft SharePoint" Title="News" EnableContentTypes="TRUE" FolderCreation="FALSE" Direction="$Resources:Direction;" Url="Lists/News" BaseType="0" xmlns="http://schemas.microsoft.com/sharepoint/">
+    <MetaData>
+        <ContentTypes>
+            <ContentType ID="0x01005AA1CC93259B41FEA2314387F025DA18" Name="NewsItem" Group="Custom Content Types" Description="News Block Content Type" Inherits="TRUE" Version="0">
+            <FieldRefs>
+                <FieldRef ID="{fa564e0f-0c70-4ab9-b863-0177e6ddd247}" DisplayName="$Resources:core,Title;" Required="TRUE" Name="Title" />
+                <FieldRef ID="{329554b0-cb75-4223-85ea-8a7c1d9bd40b}" DisplayName="Description" Required="FALSE" Name="cDescription" />
+                <FieldRef ID="{8b7ad9fa-6112-4265-911d-f9f73dd539f2}" DisplayName="Date Publishing" Required="FALSE" Name="cDatePublishing" />
+                <FieldRef ID="{4d2a59eb-68e6-4383-b3ed-3874d94d69b3}" DisplayName="Is Visible" Required="FALSE" Name="cIsVisible" />
+                <FieldRef ID="{bbc0dc41-23e2-4873-ac58-44f2b148c127}" DisplayName="Assigned Person" Required="FALSE" Name="cAssignedPerson" />
+            </FieldRefs>
+            </ContentType>
+        </ContentTypes>
+        <Fields>
+            <Field ID="{fa564e0f-0c70-4ab9-b863-0177e6ddd247}" Type="Text" Name="Title" DisplayName="$Resources:core,Title;" Required="TRUE" SourceID="http://schemas.microsoft.com/sharepoint/v3" StaticName="Title" MaxLength="255" />
+            <Field ID="{329554b0-cb75-4223-85ea-8a7c1d9bd40b}" Name="cDescription" DisplayName="Description" Type="Note" Required="FALSE" Group="Custom Site Columns"></Field>
+            <Field ID="{8b7ad9fa-6112-4265-911d-f9f73dd539f2}" Name="cDatePublishing" DisplayName="Date Publishing" Type="DateTime" Required="FALSE" Group="Custom Site Columns"></Field>
+            <Field ID="{4d2a59eb-68e6-4383-b3ed-3874d94d69b3}" Name="cIsVisible" DisplayName="Is Visible" Type="Boolean" Required="FALSE" Group="Custom Site Columns"></Field>
+            <Field ID="{bbc0dc41-23e2-4873-ac58-44f2b148c127}" Name="cAssignedPerson" DisplayName="Assigned Person" Type="User" Required="FALSE" Group="Custom Site Columns"></Field>
+        </Fields>
+        <Views>
+            <View BaseViewID="0" Type="HTML" MobileView="TRUE" TabularView="FALSE">
+                <Toolbar Type="Standard" />
+                <XslLink Default="TRUE">main.xsl</XslLink>
+                <RowLimit Paged="TRUE">30</RowLimit>
+                <ViewFields>
+                    <FieldRef Name="LinkTitleNoMenu"></FieldRef>
+                </ViewFields>
+                <Query>
+                    <OrderBy>
+                        <FieldRef Name="Modified" Ascending="FALSE"></FieldRef>
+                    </OrderBy>
+                </Query>
+                <ParameterBindings>
+                    <ParameterBinding Name="AddNewAnnouncement" Location="Resource(wss,addnewitem)" />
+                    <ParameterBinding Name="NoAnnouncements" Location="Resource(wss,noXinviewofY_LIST)" />
+                    <ParameterBinding Name="NoAnnouncementsHowTo" Location="Resource(wss,noXinviewofY_ONET_HOME)" />
+                </ParameterBindings>
+            </View>
+            <View BaseViewID="1" Type="HTML" WebPartZoneID="Main" DisplayName="$Resources:core,objectiv_schema_mwsidcamlidC24;" DefaultView="TRUE" MobileView="TRUE" MobileDefaultView="TRUE" SetupPath="pages\viewpage.aspx" ImageUrl="/_layouts/15/images/generic.png?rev=23" Url="AllItems.aspx">
+                <Toolbar Type="Standard" />
+                <XslLink Default="TRUE">main.xsl</XslLink>
+                <JSLink>clienttemplates.js</JSLink>
+                <RowLimit Paged="TRUE">30</RowLimit>
+                <ViewFields>
+                    <FieldRef Name="Title"></FieldRef>
+                    <FieldRef Name="cDescription" />
+                    <FieldRef Name="cDatePublishing" />
+                    <FieldRef Name="cIsVisible" />
+                    <FieldRef Name="cAssignedPerson" />
+                </ViewFields>
+                <Query>
+                    <OrderBy>
+                        <FieldRef Name="ID"></FieldRef>
+                    </OrderBy>
+                </Query>
+                <ParameterBindings>
+                    <ParameterBinding Name="NoAnnouncements" Location="Resource(wss,noXinviewofY_LIST)" />
+                    <ParameterBinding Name="NoAnnouncementsHowTo" Location="Resource(wss,noXinviewofY_DEFAULT)" />
+                </ParameterBindings>
+            </View>
+        </Views>
+        <Forms>
+            <Form Type="DisplayForm" Url="DispForm.aspx" SetupPath="pages\form.aspx" WebPartZoneID="Main" />
+            <Form Type="EditForm" Url="EditForm.aspx" SetupPath="pages\form.aspx" WebPartZoneID="Main" />
+            <Form Type="NewForm" Url="NewForm.aspx" SetupPath="pages\form.aspx" WebPartZoneID="Main" />
+        </Forms>
+    </MetaData>
+</List>

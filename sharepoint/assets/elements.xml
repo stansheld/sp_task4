@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+
+    <Field ID="{329554b0-cb75-4223-85ea-8a7c1d9bd40b}"
+            Name="cDescription"
+            DisplayName="Description"
+            Type="Note"
+            Required="FALSE"
+            Group="SPFx Columns" />
+    
+    <Field ID="{8b7ad9fa-6112-4265-911d-f9f73dd539f2}"
+            Name="cDatePublishing"
+            DisplayName="Date Publishing"
+            Type="DateTime"
+            Required="FALSE"
+            Group="SPFx Columns" />
+    
+    <Field ID="{4d2a59eb-68e6-4383-b3ed-3874d94d69b3}"
+            Name="cIsVisible"
+            DisplayName="Is Visible"
+            Type="Boolean"
+            Required="FALSE"
+            Group="SPFx Columns" />
+
+    <Field ID="{bbc0dc41-23e2-4873-ac58-44f2b148c127}"
+            Name="cAssignedPerson"
+            DisplayName="Assigned Person"
+            Type="User"
+            Required="FALSE"
+            Group="SPFx Columns" />
+
+    <ContentType ID="0x01005AA1CC93259B41FEA2314387F025DA18"
+            Name="NewsItem"
+            Group="SPFx Content Types"
+            Description="News Block Content Type"
+            Inherits="TRUE">
+        <FieldRefs>
+            <FieldRef ID="{fa564e0f-0c70-4ab9-b863-0177e6ddd247}" DisplayName="$Resources:core,Title;" Required="TRUE" Name="Title" />
+            <FieldRef ID="{329554b0-cb75-4223-85ea-8a7c1d9bd40b}" DisplayName="Description" Required="FALSE" Name="cDescription" />
+            <FieldRef ID="{8b7ad9fa-6112-4265-911d-f9f73dd539f2}" DisplayName="Date Publishing" Required="FALSE" Name="cDatePublishing" />
+            <FieldRef ID="{4d2a59eb-68e6-4383-b3ed-3874d94d69b3}" DisplayName="Is Visible" Required="FALSE" Name="cIsVisible" />
+            <FieldRef ID="{bbc0dc41-23e2-4873-ac58-44f2b148c127}" DisplayName="Assigned Person" Required="FALSE" Name="cAssignedPerson" />
+        </FieldRefs>
+    </ContentType>
+
+    <ListInstance
+        CustomSchema="schema.xml"
+        OnQuickLaunch="TRUE"
+        FeatureId="00bfea71-de22-43b2-a848-c05709900100"
+        Title="News"
+        Description="SPFx List"
+        TemplateType="100"
+        Url="Lists/News"> 
+    </ListInstance>
+
+</Elements>
