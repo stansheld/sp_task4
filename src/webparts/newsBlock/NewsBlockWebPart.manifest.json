@@ -23,6 +23,7 @@
     "properties": {
       "description": "News Block",
       "visibility": "Visible",
+      "myTargetProperty": "test"
     }
   }]
 }

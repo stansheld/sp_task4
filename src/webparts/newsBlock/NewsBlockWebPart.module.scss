@@ -271,3 +271,21 @@
   }
 
 }
+
+.datePickerProp {
+  height: 32px;
+  font-size: 14px;
+  font-weight: 400;
+  box-shadow: none;
+  margin: 0px;
+  padding: 0px 12px;
+  box-sizing: border-box;
+  border-radius: 0px;
+  border: none;
+  background: none transparent;
+  color: rgb(50, 49, 48);
+  width: 100%;
+  min-width: 0px;
+  text-overflow: ellipsis;
+  outline: 0px;
+}

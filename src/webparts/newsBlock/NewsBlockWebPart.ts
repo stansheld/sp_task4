@@ -4,9 +4,16 @@ import {
   PropertyPaneTextField,
   PropertyPaneDropdown,
   PropertyPaneLabel,
-  PropertyPaneCheckbox
+  PropertyPaneCheckbox,
+  PropertyPaneButton,
+  PropertyPaneButtonType
 } from '@microsoft/sp-property-pane';
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
+import {
+  BaseClientSideWebPart,
+  IPropertyPaneField,
+  IPropertyPaneCustomFieldProps,
+  PropertyPaneFieldType
+} from '@microsoft/sp-webpart-base';
 import styles from './NewsBlockWebPart.module.scss';
 import * as strings from 'NewsBlockWebPartStrings';
 import {
@@ -29,6 +36,7 @@ export interface INewsBlockWebPartProps {
   descColumn: string;
   dateColumn: string;
   userColumn: string;
+  dateFilterProperty?: any;
 }
 
 export interface ISPList {
@@ -267,6 +275,12 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
     popUpContainer.innerHTML = button;
   }
 
+  private isIsoDate(str: string): boolean {
+    if (!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/.test(str)) return false;
+    var d = new Date(str); 
+    return d.toISOString()===str;
+  }
+
   private renderList(): void {
     this.getListData().then((response) => {
       let html: string = `
@@ -301,17 +315,35 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
           */
          
           if (debug) console.log(this.properties.visibility);
-          switch(this.properties.visibility) { 
+          switch (this.properties.visibility) { 
             case "Visible": {
               if (item.cIsVisible === true) {
                 if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
-                  itemsHtml+= "<tr>";
-                  if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                  if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                  if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                  if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                  if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                  itemsHtml+= "</tr>";
+                  if (this.properties.dateFilterProperty) {
+                    if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
+                      let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
+                      let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
+                      if (debug) console.log("filt - " + dateFilter);
+                      if (debug) console.log("publ - " + datePublish);
+                      if (datePublish <= dateFilter) {
+                        itemsHtml+= "<tr>";
+                        if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                        if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                        if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                        if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                        if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                        itemsHtml+= "</tr>";
+                      }
+                    }
+                  } else {
+                    itemsHtml+= "<tr>";
+                    if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                    if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                    if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                    if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                    if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                    itemsHtml+= "</tr>";
+                  }
                 }
               }
               break;
@@ -319,6 +351,54 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
             case "Hidden": {
               if (item.cIsVisible === false) {
                 if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
+                  if (this.properties.dateFilterProperty) {
+                    if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
+                      let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
+                      let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
+                      if (debug) console.log("filt - " + dateFilter);
+                      if (debug) console.log("publ - " + datePublish);
+                      if (datePublish <= dateFilter) {
+                        itemsHtml+= "<tr>";
+                        if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                        if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                        if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                        if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                        if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                        itemsHtml+= "</tr>";
+                      }
+                    }
+                  } else {
+                    itemsHtml+= "<tr>";
+                    if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                    if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                    if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                    if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                    if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                    itemsHtml+= "</tr>";
+                  }
+                }
+              }
+              break;
+            }
+            default: {
+              if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
+                if (this.properties.dateFilterProperty) {
+                  if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
+                    let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
+                    let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
+                    if (debug) console.log("filt - " + dateFilter);
+                    if (debug) console.log("publ - " + datePublish);
+                    if (datePublish <= dateFilter) {
+                      itemsHtml+= "<tr>";
+                      if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                      if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                      if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                      if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                      if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                      itemsHtml+= "</tr>";
+                    }
+                  }
+                } else {
                   itemsHtml+= "<tr>";
                   if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
                   if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
@@ -327,18 +407,6 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                   if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
                   itemsHtml+= "</tr>";
                 }
-              }
-              break;
-            }
-            default: {
-              if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
-                itemsHtml+= "<tr>";
-                if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                itemsHtml+= "</tr>";
               }
               break;
             }
@@ -570,6 +638,32 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
     return Version.parse('1.0');
   }
 
+  private datePickerProp() : IPropertyPaneField<IPropertyPaneCustomFieldProps> {
+    return {
+      targetProperty : "dateFilterProperty",
+      type : PropertyPaneFieldType.Custom,
+      properties: {
+        key: "datePublishingProp",
+        onRender: (element: HTMLElement, context: any, changeCallback:(targetProperty: string, newValue: any) => void) => {
+          if (debug) console.log(this.properties);
+          let currentValue : string = this.properties["dateFilterProperty"] || "";
+          let datePickerPropElement: string = `<input id="datePickerPropertyField" class="${ styles.datePickerProp }" type="text" placeholder="dd.mm.yy" value="${ currentValue }" autocomplete="off">`;
+          element.innerHTML = datePickerPropElement;
+          $("body").on("focus", "#datePickerPropertyField", () => {
+            $("#datePickerPropertyField").datepicker({
+              dateFormat: 'dd.mm.yy',
+              onSelect: function() {
+                let newValue: string = $(this).datepicker('getDate').toISOString() || "";
+                changeCallback("dateFilterProperty", newValue);
+                if (debug) console.log(this.properties);
+              }
+            });
+          });
+        }
+      }
+    };
+  }
+
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
@@ -629,6 +723,19 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                   checked: true,
                   disabled: false,
                   text: "Assigned person Column"
+                }),
+                PropertyPaneLabel("datePickerLabel", {
+                  text: "Show news till date"
+                }),
+                this.datePickerProp(),
+                PropertyPaneButton('clearDateFilter', {
+                  text: "Clear",
+                  buttonType: PropertyPaneButtonType.Normal,
+                  onClick: () => {
+                    $("#datePickerPropertyField").datepicker('setDate', null);
+                    this.properties.dateFilterProperty = "";
+                    this.render();
+                  }
                 })
               ]
             }
