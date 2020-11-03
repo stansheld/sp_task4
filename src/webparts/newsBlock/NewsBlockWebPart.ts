@@ -1,7 +1,10 @@
 import { Version } from '@microsoft/sp-core-library';
 import {
   IPropertyPaneConfiguration,
-  PropertyPaneTextField
+  PropertyPaneTextField,
+  PropertyPaneDropdown,
+  PropertyPaneLabel,
+  PropertyPaneCheckbox
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import styles from './NewsBlockWebPart.module.scss';
@@ -20,6 +23,12 @@ let debug: boolean = false;
 
 export interface INewsBlockWebPartProps {
   description: string;
+  visibility: string;
+  idColumn: string;
+  titleColumn: string;
+  descColumn: string;
+  dateColumn: string;
+  userColumn: string;
 }
 
 export interface ISPList {
@@ -42,6 +51,12 @@ export interface ISPListItem {
   cIsVisible?: boolean;
   cAssignedPerson?: IAssignedPerson;
   [key: string]: any;
+}
+
+export interface IConditionalFieldWebPartProps {
+  conversationSource: 'Group'|'User'|'Topic'|'Home';
+  searchCriteria: string;
+  numberOfConversations: number;
 }
 
 SPComponentLoader.loadCss('//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css');
@@ -256,7 +271,12 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
     this.getListData().then((response) => {
       let html: string = `
         <table class="${ styles.newsTable }">
-          <th>#</th><th>Title</th><th>Description</th><th>Date Publishing</th><th>Assigned Person</th>`;
+          ${ this.properties.idColumn ? "<th>#</th>" : "" }
+          ${ this.properties.titleColumn ? "<th>Title</th>" : "" }
+          ${ this.properties.descColumn ? "<th>Description</th>" : "" }
+          ${ this.properties.dateColumn ? "<th>Date Publishing</th>" : "" }
+          ${ this.properties.userColumn ? "<th>Assigned Person</th>" : "" }
+        `;
       let itemsHtml: string = '';
       if (response.value.length > 0) {
         let loggedUserId = this.context.pageContext.legacyPageContext.userId;
@@ -265,6 +285,7 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
           let dateNow = new Date();
           if (debug) console.log("renderList() -> item.cAssignedPerson:");
           if (debug) console.log(item.cAssignedPerson);
+          /*
           if (item.cIsVisible && datePublishing && item.cAssignedPerson) {
             if (item.cIsVisible === true && datePublishing < dateNow && loggedUserId === item.cAssignedPerson.ID) {
               itemsHtml+=`
@@ -273,8 +294,53 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                   <td>${item.Title}</td>
                   <td>${item.cDescription ? item.cDescription : ""}</td>
                   <td>${item.cDatePublishing ? item.cDatePublishing : ""}</td>
-                  <td>${item.cAssignedPerson.Title}</td>
+                  <td>${item.cAssignedPerson ? item.cAssignedPerson.Title : ""}</td>
                 </tr>`;
+            }
+          }
+          */
+         
+          if (debug) console.log(this.properties.visibility);
+          switch(this.properties.visibility) { 
+            case "Visible": {
+              if (item.cIsVisible === true) {
+                if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
+                  itemsHtml+= "<tr>";
+                  if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                  if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                  if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                  if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                  if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                  itemsHtml+= "</tr>";
+                }
+              }
+              break;
+            }
+            case "Hidden": {
+              if (item.cIsVisible === false) {
+                if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
+                  itemsHtml+= "<tr>";
+                  if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                  if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                  if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                  if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                  if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                  itemsHtml+= "</tr>";
+                }
+              }
+              break;
+            }
+            default: {
+              if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
+                itemsHtml+= "<tr>";
+                if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
+                if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
+                if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
+                if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
+                if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
+                itemsHtml+= "</tr>";
+              }
+              break;
             }
           }
         });
@@ -513,10 +579,56 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
           },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: "Properties",
               groupFields: [
-                PropertyPaneTextField('description', {
+                PropertyPaneTextField("description", {
                   label: strings.DescriptionFieldLabel
+                }),
+                PropertyPaneDropdown("visibility", {
+                  label: "What news should be displayed",
+                  selectedKey: this.properties.visibility,
+                  options: [
+                    {
+                      key: "All",
+                      text: "All"
+                    },
+                    {
+                      key: "Visible",
+                      text: "Visible"
+                    },
+                    {
+                      key: "Hidden",
+                      text: "Hidden"
+                    }
+                  ]
+                }),
+                PropertyPaneLabel("columnsList", {
+                  text: "Show columns"
+                }),
+                PropertyPaneCheckbox("idColumn", {
+                  checked: true,
+                  disabled: false,
+                  text: "ID Column"
+                }),
+                PropertyPaneCheckbox("titleColumn", {
+                  checked: true,
+                  disabled: false,
+                  text: "Title Column"
+                }),
+                PropertyPaneCheckbox("descColumn", {
+                  checked: true,
+                  disabled: false,
+                  text: "Description Column"
+                }),
+                PropertyPaneCheckbox("dateColumn", {
+                  checked: true,
+                  disabled: false,
+                  text: "Date publishing Column"
+                }),
+                PropertyPaneCheckbox("userColumn", {
+                  checked: true,
+                  disabled: false,
+                  text: "Assigned person Column"
                 })
               ]
             }

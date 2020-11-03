@@ -21,7 +21,8 @@
     "description": { "default": "Block with latest news." },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "News Block"
+      "description": "News Block",
+      "visibility": "Visible",
     }
   }]
 }
