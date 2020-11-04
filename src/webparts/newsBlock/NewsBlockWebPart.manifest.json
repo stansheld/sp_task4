@@ -23,7 +23,12 @@
     "properties": {
       "description": "News Block",
       "visibility": "Visible",
-      "myTargetProperty": "test"
+      "idColumn": true,
+      "titleColumn": true,
+      "descColumn": true,
+      "dateColumn": true,
+      "userColumn": true,
+      "dateFilterProperty": ""
     }
   }]
 }

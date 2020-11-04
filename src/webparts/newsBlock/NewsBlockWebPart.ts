@@ -6,14 +6,13 @@ import {
   PropertyPaneLabel,
   PropertyPaneCheckbox,
   PropertyPaneButton,
-  PropertyPaneButtonType
-} from '@microsoft/sp-property-pane';
-import {
-  BaseClientSideWebPart,
+  PropertyPaneButtonType,
+  PropertyPaneHorizontalRule,
   IPropertyPaneField,
   IPropertyPaneCustomFieldProps,
   PropertyPaneFieldType
-} from '@microsoft/sp-webpart-base';
+} from '@microsoft/sp-property-pane';
+import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import styles from './NewsBlockWebPart.module.scss';
 import * as strings from 'NewsBlockWebPartStrings';
 import {
@@ -21,11 +20,12 @@ import {
   SPHttpClientResponse
 } from '@microsoft/sp-http';
 import { SPComponentLoader } from '@microsoft/sp-loader';
-import * as $  from 'jquery';
+import * as $ from 'jquery';
 import 'jqueryui';
 
 declare var SP: any;
 declare var SPClientPeoplePicker_InitStandaloneControlWrapper: any;
+declare var SPClientPeoplePicker: any;
 let debug: boolean = false;
 
 export interface INewsBlockWebPartProps {
@@ -37,6 +37,7 @@ export interface INewsBlockWebPartProps {
   dateColumn: string;
   userColumn: string;
   dateFilterProperty?: any;
+  peopleLoginFilterProperty?: any;
 }
 
 export interface ISPList {
@@ -69,83 +70,7 @@ export interface IConditionalFieldWebPartProps {
 
 SPComponentLoader.loadCss('//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css');
 SPComponentLoader.loadCss('//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
-SPComponentLoader.loadCss('/_layouts/15/1033/styles/corev15.css');  
-    
-SPComponentLoader.loadScript('/_layouts/15/init.js', {
-  globalExportsName: '$_global_init'
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/MicrosoftAjax.js', {
-    globalExportsName: 'Sys'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/ScriptResx.ashx?name=sp.res&culture=en-us', {
-    globalExportsName: 'Sys'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/SP.Runtime.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/SP.js', {
-    globalExportsName: 'SP'
-  });
-})            
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/sp.init.js', {
-    globalExportsName: 'SP'
-  });
-})  
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/1033/strings.js', {
-    globalExportsName: 'Strings'
-  });
-})      
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/sp.ui.dialog.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/clienttemplates.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/clientforms.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/clientpeoplepicker.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/autofill.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then((): Promise<{}> => {
-  return SPComponentLoader.loadScript('/_layouts/15/sp.core.js', {
-    globalExportsName: 'SP'
-  });
-})
-.then(() => {
-  SP.SOD.executeOrDelayUntilScriptLoaded(() => {
-    var schema = {};
-    schema['PrincipalAccountType'] = 'User';
-    schema['SearchPrincipalSource'] = 15;
-    schema['ResolvePrincipalSource'] = 15;
-    schema['AllowMultipleValues'] = false;
-    schema['MaximumEntitySuggestions'] = 5;
-    schema['Width'] = '320px';
-    SPClientPeoplePicker_InitStandaloneControlWrapper("assignedPerson", null, schema);
-  }, 'clientpeoplepicker.js');
-});
+SPComponentLoader.loadCss('/_layouts/15/1033/styles/corev15.css');
 
 export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWebPartProps> {
 
@@ -158,6 +83,7 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
       this.renderList();
       this.renderOpenPopUpButton();
       this.renderPopUp();
+      this.initNativeClientPeoplePicker("assignedPerson");
       $("#datePublishingDate").datepicker({
         dateFormat: 'dd.mm.yy',
         onSelect: () => {
@@ -167,7 +93,8 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
             msg.remove();
             dateField.classList.remove(styles.errorField);
           }
-      }});
+        }
+      });
       $("." + styles.icon).click(() => {
         if (!$("#datePublishingDate").datepicker("widget").is(":visible")) {
           $("#datePublishingDate").datepicker("show");
@@ -178,8 +105,34 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
   }
 
   private getListData(): Promise<ISPList> {
+    let selectString: string = "$select=";
+    let filterString: string = "$filter=";
+
+    if (this.properties.idColumn) selectString+= "ID,";
+    if (this.properties.titleColumn) selectString+= "Title,";
+    if (this.properties.descColumn) selectString+= "cDescription,";
+    if (this.properties.dateColumn) selectString+= "cDatePublishing,";
+    if (this.properties.userColumn) selectString+= "cAssignedPerson,cAssignedPerson/ID,cAssignedPerson/Name,cAssignedPerson/Title,cAssignedPerson/EMail&$expand=cAssignedPerson";
+    if (selectString.substring(selectString.length - 1) == ",") selectString = selectString.substring(0, selectString.length - 1);
+
+    if (this.properties.visibility === "Visible") {
+      filterString+= "(cIsVisible eq 1) and ";
+    } else if (this.properties.visibility === "Hidden") {
+      filterString+= "(cIsVisible eq 0) and ";
+    }
+    if (this.properties.dateFilterProperty) {
+      filterString+= "(cDatePublishing le datetime'" + this.properties.dateFilterProperty + "') and ";
+    }
+    if (this.properties.peopleLoginFilterProperty && this.properties.peopleLoginFilterProperty.Email) {
+      filterString+= "(cAssignedPerson/EMail eq '" + this.properties.peopleLoginFilterProperty.Email + "') and ";
+    }
+    if (filterString.substring(filterString.length - 5) == " and ") filterString = filterString.substring(0, filterString.length - 5);
+    
+    if (debug) console.log("rest api string:" + '\n' + selectString + "&" + filterString);
+
     return this.context.spHttpClient
-      .get(this.context.pageContext.web.absoluteUrl + "/_api/web/lists/GetByTitle('News')/Items?$select=*,cAssignedPerson/ID,cAssignedPerson/Title,cAssignedPerson/EMail&$expand=cAssignedPerson",
+      .get(this.context.pageContext.web.absoluteUrl
+        + "/_api/web/lists/GetByTitle('News')/Items?" + selectString + "&" + filterString,
         SPHttpClient.configurations.v1)
       .then((response: SPHttpClientResponse) => {
         return response.json();
@@ -293,124 +246,25 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
         `;
       let itemsHtml: string = '';
       if (response.value.length > 0) {
-        let loggedUserId = this.context.pageContext.legacyPageContext.userId;
+        if (debug) console.log("loggedUserId = " + this.context.pageContext.legacyPageContext.userId);
         response.value.forEach((item: ISPListItem) => {
-          let datePublishing = new Date(item.cDatePublishing);
-          let dateNow = new Date();
-          if (debug) console.log("renderList() -> item.cAssignedPerson:");
-          if (debug) console.log(item.cAssignedPerson);
-          /*
-          if (item.cIsVisible && datePublishing && item.cAssignedPerson) {
-            if (item.cIsVisible === true && datePublishing < dateNow && loggedUserId === item.cAssignedPerson.ID) {
-              itemsHtml+=`
-                <tr>
-                  <td>${item.ID}</td>
-                  <td>${item.Title}</td>
-                  <td>${item.cDescription ? item.cDescription : ""}</td>
-                  <td>${item.cDatePublishing ? item.cDatePublishing : ""}</td>
-                  <td>${item.cAssignedPerson ? item.cAssignedPerson.Title : ""}</td>
-                </tr>`;
-            }
+          let formatedDate: string = "";
+          if (item.cDatePublishing) {
+            let datePublishing: Date = new Date(item.cDatePublishing);
+            let formatedDateDate: string = ((datePublishing.getDate() < 10) ? "0" : "") + datePublishing.getDate();
+            let formatedDateMinutes: string = ((datePublishing.getMinutes() < 10) ? "0" : "") + datePublishing.getMinutes();
+            formatedDate = formatedDateDate + "." + (datePublishing.getMonth() + 1) + "." + datePublishing.getFullYear()
+              + " " + datePublishing.getHours() + ":" + formatedDateMinutes;
           }
-          */
-         
-          if (debug) console.log(this.properties.visibility);
-          switch (this.properties.visibility) { 
-            case "Visible": {
-              if (item.cIsVisible === true) {
-                if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
-                  if (this.properties.dateFilterProperty) {
-                    if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
-                      let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
-                      let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
-                      if (debug) console.log("filt - " + dateFilter);
-                      if (debug) console.log("publ - " + datePublish);
-                      if (datePublish <= dateFilter) {
-                        itemsHtml+= "<tr>";
-                        if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                        if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                        if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                        if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                        if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                        itemsHtml+= "</tr>";
-                      }
-                    }
-                  } else {
-                    itemsHtml+= "<tr>";
-                    if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                    if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                    if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                    if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                    if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                    itemsHtml+= "</tr>";
-                  }
-                }
-              }
-              break;
-            }
-            case "Hidden": {
-              if (item.cIsVisible === false) {
-                if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
-                  if (this.properties.dateFilterProperty) {
-                    if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
-                      let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
-                      let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
-                      if (debug) console.log("filt - " + dateFilter);
-                      if (debug) console.log("publ - " + datePublish);
-                      if (datePublish <= dateFilter) {
-                        itemsHtml+= "<tr>";
-                        if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                        if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                        if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                        if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                        if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                        itemsHtml+= "</tr>";
-                      }
-                    }
-                  } else {
-                    itemsHtml+= "<tr>";
-                    if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                    if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                    if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                    if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                    if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                    itemsHtml+= "</tr>";
-                  }
-                }
-              }
-              break;
-            }
-            default: {
-              if (this.properties.idColumn || this.properties.titleColumn || this.properties.descColumn || this.properties.dateColumn || this.properties.userColumn) {
-                if (this.properties.dateFilterProperty) {
-                  if (this.isIsoDate(this.properties.dateFilterProperty) && item.cDatePublishing) {
-                    let dateFilter: Date = new Date (Date.parse(this.properties.dateFilterProperty));
-                    let datePublish: Date = new Date (Date.parse(item.cDatePublishing));
-                    if (debug) console.log("filt - " + dateFilter);
-                    if (debug) console.log("publ - " + datePublish);
-                    if (datePublish <= dateFilter) {
-                      itemsHtml+= "<tr>";
-                      if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                      if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                      if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                      if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                      if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                      itemsHtml+= "</tr>";
-                    }
-                  }
-                } else {
-                  itemsHtml+= "<tr>";
-                  if (this.properties.idColumn) itemsHtml+= "<td>" + item.ID + "</td>";
-                  if (this.properties.titleColumn) itemsHtml+= "<td>" + item.Title + "</td>";
-                  if (this.properties.descColumn) itemsHtml+= "<td>" + (item.cDescription || "") + "</td>";
-                  if (this.properties.dateColumn) itemsHtml+= "<td>" + (item.cDatePublishing || "") + "</td>";
-                  if (this.properties.userColumn) itemsHtml+= "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>";
-                  itemsHtml+= "</tr>";
-                }
-              }
-              break;
-            }
-          }
+          
+          itemsHtml+= `
+            <tr>
+              ${ this.properties.idColumn ? "<td>" + item.ID + "</td>" : "" }
+              ${ this.properties.titleColumn ? "<td>" + (item.Title || "") + "</td>" : "" }
+              ${ this.properties.descColumn ? "<td>" + (item.cDescription || "") + "</td>" : "" }
+              ${ this.properties.dateColumn ? "<td>" + formatedDate + "</td>" : "" }
+              ${ this.properties.userColumn ? "<td>" + (item.cAssignedPerson ? item.cAssignedPerson.Title : "") + "</td>" : "" }
+            </tr>`;
         });
         html+= (itemsHtml) ? itemsHtml + '</table>' : `<tr><td class="${ styles.noNews }" colspan="5">There is no news right know.</tr></td></table>`;
       } else {
@@ -419,6 +273,84 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
 
       const listContainer: Element = this.domElement.querySelector('#spfxListContainer');
       listContainer.innerHTML = html;
+    });
+  }
+
+  private initNativeClientPeoplePicker(containerId: string): void {
+    SPComponentLoader.loadScript('/_layouts/15/init.js', {
+      globalExportsName: '$_global_init'
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/MicrosoftAjax.js', {
+        globalExportsName: 'Sys'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/ScriptResx.ashx?name=sp.res&culture=en-us', {
+        globalExportsName: 'Sys'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/SP.Runtime.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/SP.js', {
+        globalExportsName: 'SP'
+      });
+    })            
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/sp.init.js', {
+        globalExportsName: 'SP'
+      });
+    })  
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/1033/strings.js', {
+        globalExportsName: 'Strings'
+      });
+    })      
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/sp.ui.dialog.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/clienttemplates.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/clientforms.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/clientpeoplepicker.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/autofill.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then((): Promise<{}> => {
+      return SPComponentLoader.loadScript('/_layouts/15/sp.core.js', {
+        globalExportsName: 'SP'
+      });
+    })
+    .then(() => {
+      SP.SOD.executeOrDelayUntilScriptLoaded(() => {
+        var schema = {};
+        schema['PrincipalAccountType'] = 'User';
+        schema['SearchPrincipalSource'] = 15;
+        schema['ResolvePrincipalSource'] = 15;
+        schema['AllowMultipleValues'] = false;
+        schema['MaximumEntitySuggestions'] = 5;
+        schema['Width'] = '320px';
+        SPClientPeoplePicker_InitStandaloneControlWrapper(containerId, null, schema);
+      }, 'clientpeoplepicker.js');
     });
   }
 
@@ -638,7 +570,7 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
     return Version.parse('1.0');
   }
 
-  private datePickerProp() : IPropertyPaneField<IPropertyPaneCustomFieldProps> {
+  private datePickerProp(): IPropertyPaneField<IPropertyPaneCustomFieldProps> {
     return {
       targetProperty : "dateFilterProperty",
       type : PropertyPaneFieldType.Custom,
@@ -647,7 +579,10 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
         onRender: (element: HTMLElement, context: any, changeCallback:(targetProperty: string, newValue: any) => void) => {
           if (debug) console.log(this.properties);
           let currentValue : string = this.properties["dateFilterProperty"] || "";
-          let datePickerPropElement: string = `<input id="datePickerPropertyField" class="${ styles.datePickerProp }" type="text" placeholder="dd.mm.yy" value="${ currentValue }" autocomplete="off">`;
+          let tempDate: Date = new Date(Date.parse(currentValue));
+          let formatedCurrentValue: string = "";
+          if (this.properties["dateFilterProperty"]) formatedCurrentValue = tempDate.getDate() + "." + (tempDate.getMonth() + 1) + "." + tempDate.getFullYear();
+          let datePickerPropElement: string = `<input id="datePickerPropertyField" class="${ styles.datePickerProp }" type="text" placeholder="dd.mm.yy" value="${ formatedCurrentValue }" autocomplete="off">`;
           element.innerHTML = datePickerPropElement;
           $("body").on("focus", "#datePickerPropertyField", () => {
             $("#datePickerPropertyField").datepicker({
@@ -658,6 +593,77 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                 if (debug) console.log(this.properties);
               }
             });
+          });
+        }
+      }
+    };
+  }
+
+  private peoplePickerProp(): IPropertyPaneField<IPropertyPaneCustomFieldProps> {
+    return {
+      targetProperty : "peopleLoginFilterProperty",
+      type : PropertyPaneFieldType.Custom,
+      properties: {
+        key: "peoplePickerProp",
+        onRender: (element: HTMLElement, context: any, changeCallback:(targetProperty: string, newValue: any) => void) => {
+          if (debug) console.log(this.properties);
+          let currentValue : any = this.properties["peopleLoginFilterProperty"] || null;
+          let peoplePickerPropElement: string = `<div id="peoplePickerPropertyField" class="${ styles.peoplePickerProp }"></div>`;
+          element.innerHTML = peoplePickerPropElement;
+          SPComponentLoader.loadScript('/_layouts/15/clientpeoplepicker.js', {
+            globalExportsName: 'SP'
+          }).then(() => {
+            SP.SOD.executeOrDelayUntilScriptLoaded(() => {
+              var schema = {};
+              schema['PrincipalAccountType'] = 'User';
+              schema['SearchPrincipalSource'] = 15;
+              schema['ResolvePrincipalSource'] = 15;
+              schema['AllowMultipleValues'] = false;
+              schema['MaximumEntitySuggestions'] = 5;
+              schema['Width'] = '91%';
+    
+              var users = null;
+              if (currentValue && currentValue.Email) {​​​​​
+                users = new Array(1);
+                var user: any = {};
+                user.AutoFillDisplayText = currentValue.DisplayName;
+                user.AutoFillKey = currentValue;
+                user.AutoFillSubDisplayText = "";
+                user.DisplayText = currentValue.DisplayName;
+                user.EntityType = "User";
+                user.IsResolved = true;
+                user.Key = currentValue.Key;
+                user.ProviderDisplayName = "Tenant";
+                user.ProviderName = "Tenant";
+                user.Resolved = true;
+                users[0] = user;
+              }​​​​​
+
+              SPClientPeoplePicker_InitStandaloneControlWrapper("peoplePickerPropertyField", users, schema);
+              var picker = SPClientPeoplePicker.SPClientPeoplePickerDict.peoplePickerPropertyField_TopSpan;
+              if (debug) console.log(picker);
+              picker.OnValueChangedClientScript = (elementId, userInfo) => {
+                if (debug) console.log(userInfo);
+                let userData: any = {};
+                
+                if (userInfo.length > 0) {
+                  let userObj: any = userInfo[0];
+                  if (debug) console.log(userObj);
+                  userData = userObj.EntityData;
+                  userData.Key = userObj.Key;
+                  userData.DisplayName = userObj.DisplayText;
+                }
+                this.properties["peopleLoginFilterProperty"] = userData;
+                this.render();
+              
+                if (debug) {
+                  for (var x = 0; x < userInfo.length; x++) {
+                    console.log(userInfo[x].Key);
+                  }
+                  console.log("Total number of " + userInfo.length + " users is selected");
+                }
+              }; 
+            }, 'clientpeoplepicker.js');
           });
         }
       }
@@ -678,6 +684,7 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                 PropertyPaneTextField("description", {
                   label: strings.DescriptionFieldLabel
                 }),
+                PropertyPaneHorizontalRule(),
                 PropertyPaneDropdown("visibility", {
                   label: "What news should be displayed",
                   selectedKey: this.properties.visibility,
@@ -696,6 +703,7 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                     }
                   ]
                 }),
+                PropertyPaneHorizontalRule(),
                 PropertyPaneLabel("columnsList", {
                   text: "Show columns"
                 }),
@@ -724,19 +732,24 @@ export default class NewsBlockWebPart extends BaseClientSideWebPart<INewsBlockWe
                   disabled: false,
                   text: "Assigned person Column"
                 }),
+                PropertyPaneHorizontalRule(),
                 PropertyPaneLabel("datePickerLabel", {
-                  text: "Show news till date"
+                  text: "Show news published till date"
                 }),
                 this.datePickerProp(),
                 PropertyPaneButton('clearDateFilter', {
                   text: "Clear",
-                  buttonType: PropertyPaneButtonType.Normal,
+                  buttonType: PropertyPaneButtonType.Primary,
                   onClick: () => {
                     $("#datePickerPropertyField").datepicker('setDate', null);
                     this.properties.dateFilterProperty = "";
-                    this.render();
                   }
-                })
+                }),
+                PropertyPaneHorizontalRule(),
+                PropertyPaneLabel("peoplePickerLabel", {
+                  text: "Show news published by user"
+                }),
+                this.peoplePickerProp()
               ]
             }
           ]
